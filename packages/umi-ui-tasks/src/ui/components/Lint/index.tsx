@@ -20,7 +20,7 @@ interface IProps {
 const { SizeMe } = withSize;
 const taskType = TaskType.LINT;
 
-const LintComponent: React.FC<IProps> = ({ api, detail = {}, dispatch }) => {
+const LintComponent: React.FC<IProps> = ({ api, detail = {}, dispatch, iife }) => {
   const { intl } = api;
   const [log, setLog] = useState('');
   const [init] = useInit(detail);
@@ -39,12 +39,15 @@ const LintComponent: React.FC<IProps> = ({ api, detail = {}, dispatch }) => {
           },
         },
       });
+      if (iife) {
+        lint();
+      }
       return () => {
-        const terminal = getTerminalIns(taskType);
+        const terminal = getTerminalIns(taskType, api.currentProject.key);
         terminal && terminal.clear();
       };
     },
-    [init],
+    [init, iife],
   );
 
   async function lint() {
@@ -108,7 +111,7 @@ const LintComponent: React.FC<IProps> = ({ api, detail = {}, dispatch }) => {
               <Terminal
                 api={api}
                 size={size}
-                terminal={getTerminalIns(taskType)}
+                terminal={getTerminalIns(taskType, api.currentProject.key)}
                 log={log}
                 onClear={() => {
                   clearLog(taskType);

@@ -4,8 +4,11 @@ import lodash from 'lodash';
 import history from '@tmp/history';
 // eslint-disable-next-line no-multi-assign
 import * as intl from 'umi-plugin-react/locale';
+import isPlainObject from 'lodash/isPlainObject';
 import { FC } from 'react';
 import { IUi } from 'umi-types';
+import moment from 'moment';
+import qs from 'qs';
 import { send, callRemote, listenRemote } from './socket';
 import event, { MESSAGES } from '@/message';
 import { pluginDebug } from '@/debug';
@@ -16,13 +19,14 @@ import ConfigForm from './components/ConfigForm';
 import TwoColumnPanel from './components/TwoColumnPanel';
 import { openInEditor, openConfigFile } from '@/services/project';
 import { isMiniUI, getDuplicateKeys } from '@/utils';
+import getAnalyze from './getAnalyze';
 import Field from './components/Field';
 
 // PluginAPI
 export default class PluginAPI {
-  public service: IUi.IService;
-  public _: IUi.ILodash;
-  public debug: IUi.IDebug;
+  service: IUi.IService;
+  _: IUi.ILodash;
+  debug: IUi.IDebug;
   callRemote: IUi.ICallRemote;
   listenRemote: IUi.IListenRemote;
   send: IUi.ISend;
@@ -36,6 +40,10 @@ export default class PluginAPI {
   connect: IUi.IConnect;
   mini: boolean;
   bigfish: boolean;
+  history: any;
+  event: IUi.IEvent;
+  moment: IUi.IMoment;
+  _analyze: IUi.IAnalyze;
 
   constructor(service: IUi.IService, currentProject: IUi.ICurrentProject) {
     this.service = service;
@@ -57,6 +65,11 @@ export default class PluginAPI {
     this.bigfish = !!window.g_bigfish;
     this.connect = connect as IUi.IConnect;
     this.mini = isMiniUI();
+    this.event = event;
+    this.moment = moment;
+    this.history = history;
+    // 统计
+    this._analyze = getAnalyze();
 
     const proxyIntl = new Proxy(intl, {
       get: (target, prop: any) => {
@@ -160,6 +173,13 @@ export default class PluginAPI {
     event.emit(MESSAGES.HIDE_LOG);
   };
 
+  /**
+   * get query params /?bar=&foo=&mini
+   */
+  getSearchParams: IUi.IGetSearchParams = () => {
+    return qs.parse(window.location.search, { ignoreQueryPrefix: true });
+  };
+
   getSharedDataDir = async () => {
     const { tmpDir } = await callRemote({
       type: '@@project/getSharedDataDir',
@@ -190,9 +210,7 @@ export default class PluginAPI {
 
   intl: IUi.IIntl = intl.formatMessage;
 
-  getLocale: IUi.IGetLocale = () => {
-    return window.g_lang;
-  };
+  getLocale: IUi.IGetLocale = () => window.g_lang;
 
   notify: IUi.INotify = async payload => {
     const { title, message, subtitle, ...restPayload } = payload;
@@ -240,13 +258,33 @@ export default class PluginAPI {
     return window.g_uiContext;
   }
 
-  getBasicUI = () => {
+  getBasicUI: IUi.IGetBasicUI = () => {
     const { basicUI } = this.service;
     return Object.freeze(basicUI);
   };
 
   addPanel: IUi.IAddPanel = panel => {
     this.service.panels.push(panel);
+  };
+
+  getDashboard: IUi.IGetDashboard = () => this.service.dashboard;
+
+  addDashboard: IUi.IAddDashboard = config => {
+    if (!isPlainObject(config) && !Array.isArray(config)) {
+      console.error('api.addDashboard config error', config);
+      return;
+    }
+    const configs = Array.isArray(config) ? config : [config];
+    const tweakConfigs = configs.map(c => ({ ...c, enable: true }));
+    tweakConfigs.forEach(tweakConfig => {
+      const repeatConfig = this.service.dashboard.find(card => card.key === tweakConfig.key);
+      if (!repeatConfig) {
+        this.service.dashboard.push(tweakConfig);
+      } else {
+        // repeat key error
+        console.error(`Umi UI dashboard card key must be unique, but found ${repeatConfig.key}`);
+      }
+    });
   };
 
   // modify basic UI api.modifyBasicUI({  })

@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { IUiApi } from 'umi-types';
+import { Setting } from '@ant-design/icons';
 import Dev from './ui/components/Dev';
 import Build from './ui/components/Build';
 import Lint from './ui/components/Lint';
@@ -102,6 +103,10 @@ export default (api: IUiApi) => {
       return true;
     });
 
+    // 立即执行参数
+    const { iife: searchIIFE } = api.getSearchParams();
+    const iife = searchIIFE === 'true';
+
     return (
       <TwoColumnPanel
         sections={sections.map((taskType: string) => {
@@ -117,7 +122,13 @@ export default (api: IUiApi) => {
             description,
             component: () => (
               <div className={styles.section}>
-                <Component api={api} detail={detail} dispatch={dispatch} dbPath={dbPath} />
+                <Component
+                  iife={iife}
+                  api={api}
+                  detail={detail}
+                  dispatch={dispatch}
+                  dbPath={dbPath}
+                />
               </div>
             ),
           };
@@ -132,6 +143,34 @@ export default (api: IUiApi) => {
   api.addLocales({
     'zh-CN': zhCN,
     'en-US': enUS,
+  });
+
+  const { FormattedMessage } = api.intl;
+
+  const commonContent = [
+    <a onClick={() => api.redirect('/tasks?type=block&active=build&iife=true')}>
+      <FormattedMessage id="org.umi.ui.tasks.dashboard.build" />
+    </a>,
+    <a onClick={() => api.redirect('/tasks?type=block&active=lint&iife=true')}>
+      <FormattedMessage id="org.umi.ui.tasks.dashboard.lint" />
+    </a>,
+  ];
+
+  api.addDashboard({
+    // 唯一标识，org.umi.dashboard.card.${key}
+    key: 'org.umi.dashboard.card.task',
+    title: <FormattedMessage id="org.umi.ui.tasks.title" />,
+    description: <FormattedMessage id="org.umi.ui.tasks.description" />,
+    icon: <Setting />,
+    content: api.mini
+      ? // mini 下没有 dev
+        commonContent
+      : [
+          <a onClick={() => api.redirect('/tasks?type=block&active=dev&iife=true')}>
+            <FormattedMessage id="org.umi.ui.tasks.dashboard.dev" />
+          </a>,
+          ...commonContent,
+        ],
   });
 
   api.addPanel({

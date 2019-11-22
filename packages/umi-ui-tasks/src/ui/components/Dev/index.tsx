@@ -22,7 +22,7 @@ interface IProps {
 const { SizeMe } = withSize;
 const taskType = TaskType.DEV;
 
-const DevComponent: React.FC<IProps> = ({ api, detail = {}, dispatch, dbPath }) => {
+const DevComponent: React.FC<IProps> = ({ api, detail = {}, dispatch, dbPath, iife }) => {
   const { intl } = api;
   const isEnglish = api.getLocale() === 'en-US';
   const [form] = Form.useForm();
@@ -62,14 +62,17 @@ const DevComponent: React.FC<IProps> = ({ api, detail = {}, dispatch, dbPath }) 
           },
         });
       }
+      if (iife) {
+        dev();
+      }
       // UnMount: reset form
       return () => {
         form.resetFields();
-        const terminal = getTerminalIns(taskType);
+        const terminal = getTerminalIns(taskType, api.currentProject.key);
         terminal && terminal.clear();
       };
     },
-    [init, view],
+    [init, view, iife],
   );
 
   async function dev() {
@@ -366,7 +369,7 @@ const DevComponent: React.FC<IProps> = ({ api, detail = {}, dispatch, dbPath }) 
                 <Terminal
                   api={api}
                   size={size}
-                  terminal={getTerminalIns(taskType)}
+                  terminal={getTerminalIns(taskType, api.currentProject.key)}
                   log={log}
                   onClear={() => {
                     clearLog(taskType);

@@ -2,7 +2,13 @@
 
 # umi
 
-[![Coverage Status](https://coveralls.io/repos/github/umijs/umi/badge.svg?branch=master)](https://coveralls.io/github/umijs/umi?branch=master) [![NPM version](https://img.shields.io/npm/v/umi.svg?style=flat)](https://npmjs.org/package/umi) [![Build Status](https://img.shields.io/travis/umijs/umi.svg?style=flat)](https://travis-ci.org/umijs/umi) [![NPM downloads](http://img.shields.io/npm/dm/umi.svg?style=flat)](https://npmjs.org/package/umi) [![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lernajs.io/)
+[![codecov](https://codecov.io/gh/umijs/umi/branch/master/graph/badge.svg)](https://codecov.io/gh/umijs/umi)
+[![NPM version](https://img.shields.io/npm/v/umi.svg?style=flat)](https://npmjs.org/package/umi)
+[![CircleCI](https://circleci.com/gh/umijs/umi/tree/master.svg?style=svg)](https://circleci.com/gh/umijs/umi/tree/master)
+[![Build Status](https://chenshuai2144.visualstudio.com/umi/_apis/build/status/umijs.umi?branchName=master)](https://chenshuai2144.visualstudio.com/umi/_build/latest?definitionId=1&branchName=master)
+[![GitHub Actions status](https://github.com/umijs/umi/workflows/Node%20CI/badge.svg)](https://github.com/umijs/umi)
+[![NPM downloads](http://img.shields.io/npm/dm/umi.svg?style=flat)](https://npmjs.org/package/umi)
+[![lerna](https://img.shields.io/badge/maintained%20with-lerna-cc00ff.svg)](https://lernajs.io/)
 
 🌋 可插拔的企业级 react 应用框架。
 
@@ -22,6 +28,8 @@
 - 🍁 **支持 TypeScript**，包含 umi API 的 d.ts 定义，测试方案，组件打包方案等
 - 🌴 **深入集成 [dva](https://github.com/dvajs/dva) 数据流方案但不耦合**，支持 duck directory、约定式的 model 挂载、model 的 动态加载等
 - ⛄️ **支持多页应用**，基于 [umi-plugin-mpa](https://github.com/umijs/umi-plugin-mpa)
+- 💄 **可视化辅助编程**, 使用 [Umi UI](https://umijs.org/guide/umi-ui.html) 提高开发效率。。
+- 🌈 **支持服务端渲染**，[使用手册](https://umijs.org/guide/ssr.html).
 
 [以及更多。](https://www.npmjs.com/search?q=umi-plugin)
 

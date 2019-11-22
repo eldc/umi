@@ -3,7 +3,7 @@ import HtmlGenerator from '../../html/HTMLGenerator';
 
 export default (service, opts = {}) => {
   const { config, paths, webpackConfig, routes } = service;
-  const { chunksMap, headScripts } = opts;
+  const { chunksMap, headScripts, scripts } = opts;
   return new HtmlGenerator({
     config,
     paths,
@@ -20,8 +20,10 @@ export default (service, opts = {}) => {
     modifyRouterBaseStr(str) {
       return str;
     },
-    modifyPublicPathStr(str) {
-      return str;
+    modifyPublicPathStr(memo) {
+      return service.applyPlugins('modifyPublicPathStr', {
+        initialValue: memo,
+      });
     },
     modifyChunks(memo, opts = {}) {
       const { route } = opts;
@@ -47,7 +49,7 @@ export default (service, opts = {}) => {
     modifyScripts(memo, opts = {}) {
       const { route } = opts;
       return service.applyPlugins('addHTMLScript', {
-        initialValue: memo,
+        initialValue: [...(scripts || []), ...memo],
         args: { route },
       });
     },

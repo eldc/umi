@@ -61,7 +61,8 @@ const Adder: React.FC<AdderProps> = props => {
     blockType,
   } = props;
   const { api } = useContext(Context);
-  const { callRemote, intl } = api;
+  const { callRemote, intl, _analyze } = api;
+  const { gtag } = _analyze;
 
   const [taskLoading, setTaskLoading] = useState<boolean>(false);
   // 防止重复提交
@@ -121,6 +122,10 @@ const Adder: React.FC<AdderProps> = props => {
         } else {
           setAddStatus('form');
         }
+        gtag('event', 'add-blocks-success', {
+          event_category: 'block',
+          event_label: msg.data && msg.data.path ? msg.data.path : '',
+        });
       },
     });
 
@@ -130,13 +135,17 @@ const Adder: React.FC<AdderProps> = props => {
      */
     api.listenRemote({
       type: 'org.umi.block.add-blocks-fail',
-      onMessage: () => {
+      onMessage: msg => {
         setTaskLoading(false);
         onAddBlockChange(undefined);
         // 如果标签页不激活，不处理它
         if (document.visibilityState !== 'hidden') {
           message.error(intl({ id: 'org.umi.ui.blocks.adder.failed' }));
         }
+        gtag('event', 'add-blocks-fail', {
+          event_category: 'block',
+          event_label: msg.data && msg.data.path ? msg.data.path : '',
+        });
       },
     });
 
@@ -298,22 +307,28 @@ const Adder: React.FC<AdderProps> = props => {
           .validateFields()
           .then(async (values: any) => {
             setAddStatus('log');
-            const params: AddBlockParams = {
-              ...values,
-              url: block.url,
-              path: await getPathFromFilename(api, values.path),
-              routePath: blockType === 'template' ? values.routePath : undefined,
-              page: blockType === 'template',
-              // support: l-${index} or ${index}
-              index: values.index.startsWith('l-')
-                ? values.index
-                : parseInt(values.index || '0', 10),
-              name: blockType === 'template' ? block.name : values.name,
-            };
             try {
+              const params: AddBlockParams = {
+                ...values,
+                url: block.url,
+                path: await getPathFromFilename(api, values.path),
+                routePath: blockType === 'template' ? values.routePath : undefined,
+                page: blockType === 'template',
+                // support: l-${index} or ${index}
+                index:
+                  values.index && values.index.startsWith('l-')
+                    ? values.index
+                    : parseInt(values.index || '0', 10),
+                name: blockType === 'template' ? block.name : values.name,
+              };
+
               addBlock(api, params);
               localStorage.setItem('umi-ui-block-removeLocale', values.uni18n);
               onAddBlockChange(block);
+              gtag('event', 'install-block', {
+                event_category: 'block',
+                event_label: params && params.path ? params.path : '',
+              });
             } catch (error) {
               message.error(error.message);
             }

@@ -9,7 +9,7 @@ import openBrowser from 'react-dev-utils/openBrowser';
 import { existsSync, readFileSync, statSync } from 'fs';
 import { execSync } from 'child_process';
 import got from 'got';
-import { pick } from 'lodash';
+import { pick, get } from 'lodash';
 import rimraf from 'rimraf';
 import portfinder from 'portfinder';
 import resolveFrom from 'resolve-from';
@@ -24,11 +24,10 @@ import { BackToHomeAction, OpenProjectAction, ReInstallDependencyAction } from '
 import { isDepLost, isPluginLost, isUmiProject, isUsingBigfish, isUsingUmi } from './checkProject';
 import getScripts from './scripts';
 import isDepFileExists from './utils/isDepFileExists';
+import initTerminal, { resizeTerminal } from './terminal';
 import detectLanguage from './detectLanguage';
 import detectNpmClients from './detectNpmClients';
-
-const debug = require('debug')('umiui:UmiUI');
-const debugSocket = debug.extend('socket');
+import debug, { debugSocket } from './debug';
 
 process.env.UMI_UI = 'true';
 
@@ -170,13 +169,13 @@ export default class UmiUI {
       const localBin = isDepFileExists(cwd, binModule);
       if (process.env.UI_CHECK_LOCAL !== 'none' && localBin) {
         const { version } = JSON.parse(readFileSync(join(cwd, 'node_modules', pkgModule), 'utf-8'));
-        if (!semver.satisfies(version, process.env.BIGFISH_COMPAT ? '^2.21.0-0' : '^2.10.0-0')) {
+        if (!semver.gt(version, process.env.BIGFISH_COMPAT ? '2.23.0' : '2.12.0-beta.2')) {
           throw new ActiveProjectError({
             title: process.env.BIGFISH_COMPAT
-              ? `本地项目的 Bigfish 版本（${version}）过低，请升级到 @alipay/bigfish@2.21 或以上，<a target="_blank" href="https://yuque.antfin-inc.com/bigfish/doc/uzfwoc#ff1deb63">查看详情</a>。`
+              ? `本地项目的 Bigfish 版本（${version}）过低，请升级到 @alipay/bigfish@2.23 或以上，<a target="_blank" href="https://yuque.antfin-inc.com/bigfish/doc/uzfwoc#ff1deb63">查看详情</a>。`
               : {
-                  'zh-CN': `本地项目的 Umi 版本（${version}）过低，请升级到 umi@2.10 或以上，<a target="_blank" href="https://umijs.org/zh/guide/faq.html#umi-%E7%89%88%E6%9C%AC%E8%BF%87%E4%BD%8E%EF%BC%8C%E8%AF%B7%E5%8D%87%E7%BA%A7%E5%88%B0%E6%9C%80%E6%96%B0">查看详情</a>。`,
-                  'en-US': `Umi version (${version}) of the project is too low, please upgrade to umi@2.10 or above, <a target="_blank" href="https://umijs.org/guide/faq.html#umi-version-is-too-low-please-upgrade-to-umi-2-9-or-above">view details</a>.`,
+                  'zh-CN': `本地项目的 Umi 版本（${version}）过低，请升级到 umi@2.12 或以上，<a target="_blank" href="https://umijs.org/zh/guide/faq.html#umi-%E7%89%88%E6%9C%AC%E8%BF%87%E4%BD%8E%EF%BC%8C%E8%AF%B7%E5%8D%87%E7%BA%A7%E5%88%B0%E6%9C%80%E6%96%B0">查看详情</a>。`,
+                  'en-US': `Umi version (${version}) of the project is too low, please upgrade to umi@2.12 or above, <a target="_blank" href="https://umijs.org/guide/faq.html#umi-version-is-too-low-please-upgrade-to-umi-2-9-or-above">view details</a>.`,
                 },
             lang,
             actions: [ReInstallDependencyAction, OpenProjectAction, BackToHomeAction],
@@ -572,6 +571,7 @@ export default class UmiUI {
         break;
       case '@@project/list':
         this.config.checkValid();
+        this.config.load();
         success({
           data: this.config.data,
         });
@@ -642,10 +642,12 @@ export default class UmiUI {
         log('info', `Edit project: ${this.getProjectName(payload.key)}`);
         this.config.editProject(payload.key, {
           name: payload.name,
+          cloudUrl: payload.cloudUrl,
         });
         success();
         break;
       case '@@project/setCurrentProject':
+        this.config.load(); // 重新 load
         this.config.setCurrentProject(payload.key);
         success();
         break;
@@ -819,6 +821,7 @@ export default class UmiUI {
         break;
       default:
         log('error', chalk.red(`Unhandled message type ${type}`));
+        failure();
         break;
     }
   }
@@ -830,6 +833,7 @@ export default class UmiUI {
       const url = require('url');
       const express = require('express');
       const compression = require('compression');
+      const sockjs = require('sockjs');
       const app = express();
       app.use(compression());
 
@@ -844,6 +848,22 @@ export default class UmiUI {
           }),
         );
       }
+
+      /**
+       * Terminal shell resize server
+       */
+      app.get('/terminal/resize', async (req, res) => {
+        const rows = parseInt(req.query.rows || 30);
+        const cols = parseInt(req.query.cols || 180);
+        try {
+          resizeTerminal({ rows, cols });
+          res.send({
+            success: true,
+            rows,
+            cols,
+          });
+        } catch (_) {}
+      });
 
       app.get('/', async (req, res) => {
         const isMini = 'mini' in req.query;
@@ -919,7 +939,6 @@ export default class UmiUI {
         return html;
       }
 
-      const sockjs = require('sockjs');
       const ss = sockjs.createServer();
 
       const conns = {};
@@ -998,7 +1017,16 @@ export default class UmiUI {
                   progress: progress.bind(this, type),
                 },
               );
-            } else if (this.basicConfigPath) {
+            } else {
+              assert(this.servicesByKey[key], `service of key ${key} not exists.`);
+              const service = this.servicesByKey[key];
+              service.applyPlugins('onUISocket', {
+                args: serviceArgs,
+              });
+            }
+
+            // Bigfish extend service
+            if (this.basicConfigPath) {
               const { services } =
                 // eslint-disable-next-line import/no-dynamic-require
                 require(this.basicConfigPath).default || require(this.basicConfigPath) || {};
@@ -1008,12 +1036,6 @@ export default class UmiUI {
                   baseUIService(serviceArgs);
                 });
               }
-            } else {
-              assert(this.servicesByKey[key], `service of key ${key} not exists.`);
-              const service = this.servicesByKey[key];
-              service.applyPlugins('onUISocket', {
-                args: serviceArgs,
-              });
             }
             // eslint-disable-next-line no-empty
           } catch (e) {
@@ -1058,6 +1080,7 @@ export default class UmiUI {
         prefix: '/umiui',
         log: () => {},
       });
+      initTerminal.call(this, server);
       this.socketServer = ss;
       this.server = server;
     });

@@ -41,8 +41,6 @@ const BubbleWrapper = styled('div')`
 
 const CloseComponent = styled(Close)`
   position: absolute;
-  width: 20px;
-  height: 20px;
   top: 50%;
   user-select: none;
   color: #fff;
@@ -110,11 +108,11 @@ class Bubble extends React.Component {
     }
   };
 
-  handleDrag = () => {
-    if (this.props.open) {
-      this.props.toggleMiniOpen(false);
-    }
-  };
+  // handleDrag = () => {
+  //   if (this.props.open) {
+  //     this.props.toggleMiniOpen(false);
+  //   }
+  // };
 
   render() {
     const { isBigfish, open, loading, children, message, locale, edit, editText } = this.props;
@@ -128,7 +126,7 @@ class Bubble extends React.Component {
         onClick={this.showBubble}
         onOverlap={this.hideBubble}
         message={message}
-        onDrag={this.handleDrag}
+        // onDrag={this.handleDrag}
         isBigfish={isBigfish}
         locale={locale}
       >
@@ -139,8 +137,8 @@ class Bubble extends React.Component {
             <EditText>{editText[locale] || editText['zh-CN'] || ''}</EditText>
           ) : (
             <>
-              <Logo open={open} />
-              <CloseComponent open={open} />
+              <Logo style={{ width: 28, height: 28 }} open={open} />
+              <CloseComponent style={{ width: 20, height: 20 }} open={open} />
             </>
           )}
         </BubbleWrapper>
